@@ -1,5 +1,5 @@
 # 😼 LazyCat
-**The APT Recon Suite**
+**lazy Recon Suite**
 
 > *Minimum Effort. Maximum Impact.*
 
