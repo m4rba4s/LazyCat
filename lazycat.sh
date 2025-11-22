@@ -13,6 +13,8 @@ source "$SCRIPT_DIR/lib/utils.sh"
 
 # Load Modules
 source "$SCRIPT_DIR/modules/discovery.sh"
+source "$SCRIPT_DIR/modules/dns_security.sh"
+source "$SCRIPT_DIR/modules/tls_audit.sh"
 source "$SCRIPT_DIR/modules/crawling.sh"
 source "$SCRIPT_DIR/modules/vuln.sh"
 source "$SCRIPT_DIR/modules/report.sh"
@@ -119,6 +121,12 @@ main() {
 
     # 1. Discovery
     run_discovery "$TARGET" "$OUT_DIR" "$SCOPE_FILE"
+
+    # 1.5 DNS Security Audit
+    run_dns_security "$TARGET" "$OUT_DIR"
+    
+    # 1.6 TLS/SSL Audit
+    run_tls_audit "$OUT_DIR"
 
     # 2. Crawling (if enabled in profile)
     local crawl_enabled="profiles_${PROFILE}_katana"
