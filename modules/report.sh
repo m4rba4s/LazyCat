@@ -1,6 +1,23 @@
 #!/bin/bash
 # modules/report.sh
 
+# Helper: Count lines in file
+count_lines() {
+    local file="$1"
+    [[ -f "$file" ]] && wc -l < "$file" || echo 0
+}
+
+# Helper: Extract findings by severity
+extract_findings() {
+    local file="$1"
+    local severity="$2"
+    if [[ -s "$file" ]]; then
+        grep "\[${severity}\]" "$file" || echo "None"
+    else
+        echo "None"
+    fi
+}
+
 generate_report() {
     local target="$1"
     local out_dir="$2"
@@ -11,32 +28,24 @@ generate_report() {
     local report_file="$out_dir/REPORT.md"
     
     {
-        echo "# Recon-v7 Scan Report"
+        echo "# LazyCat Scan Report"
         echo "**Target:** $target"
         echo "**Date:** $(date)"
         echo "**Profile:** $profile"
         echo "---"
         
         echo "## Summary"
-        echo "- Live Hosts: $([ -f "$out_dir/live_hosts.txt" ] && wc -l < "$out_dir/live_hosts.txt" || echo 0)"
-        echo "- Endpoints: $([ -f "$out_dir/content/endpoints.txt" ] && wc -l < "$out_dir/content/endpoints.txt" || echo 0)"
-        echo "- Nuclei Findings: $([ -f "$out_dir/vulns/nuclei_results.txt" ] && wc -l < "$out_dir/vulns/nuclei_results.txt" || echo 0)"
-        echo "- XSS Findings: $([ -f "$out_dir/vulns/xss.txt" ] && wc -l < "$out_dir/vulns/xss.txt" || echo 0)"
+        echo "- Live Hosts: $(count_lines "$out_dir/live_hosts.txt")"
+        echo "- Endpoints: $(count_lines "$out_dir/content/endpoints.txt")"
+        echo "- Nuclei Findings: $(count_lines "$out_dir/vulns/nuclei_results.txt")"
+        echo "- XSS Findings: $(count_lines "$out_dir/vulns/xss.txt")"
         echo ""
         
         echo "## Critical Findings"
-        if [[ -s "$out_dir/vulns/nuclei_results.txt" ]]; then
-            grep "\[critical\]" "$out_dir/vulns/nuclei_results.txt" || echo "None"
-        else
-            echo "None"
-        fi
+        extract_findings "$out_dir/vulns/nuclei_results.txt" "critical"
         
         echo "## High Findings"
-        if [[ -s "$out_dir/vulns/nuclei_results.txt" ]]; then
-            grep "\[high\]" "$out_dir/vulns/nuclei_results.txt" || echo "None"
-        else
-            echo "None"
-        fi
+        extract_findings "$out_dir/vulns/nuclei_results.txt" "high"
 
         echo "## XSS Findings"
         if [[ -s "$out_dir/vulns/xss.txt" ]]; then

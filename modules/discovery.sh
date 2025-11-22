@@ -9,7 +9,8 @@ run_discovery() {
     log_info "Phase 1: Discovery (Subfinder & HTTPX)"
     
     # 1. Subdomain Enumeration
-    if [[ "${profiles_fast_subfinder:-true}" == "true" ]]; then
+    local subfinder_enabled="profiles_${PROFILE}_subfinder"
+    if [[ "${!subfinder_enabled:-true}" == "true" ]]; then
         log_info "Running Subfinder..."
         subfinder -d "$target" -silent -all -o "$out_dir/subs_raw.txt"
     else

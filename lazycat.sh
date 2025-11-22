@@ -28,20 +28,26 @@ main() {
     SCOPE_FILE=""
     PROFILE="default"
     CONFIG_FILE="$SCRIPT_DIR/config.yaml"
+    DRY_RUN="false"
+    AUTH_COOKIE=""
+    AUTH_HEADER=""
 
-    # Parse Args
-    while getopts "t:o:s:p:c:h" opt; do
-        case "$opt" in
-            t) TARGET="$OPTARG" ;;
-            o) OUT_DIR="$OPTARG" ;;
-            s) SCOPE_FILE="$OPTARG" ;;
-            p) PROFILE="$OPTARG" ;;
-            c) CONFIG_FILE="$OPTARG" ;;
-            h) 
-                echo "Usage: $0 -t <target> [-p fast|default|full] [-s scope.txt] [-o output_dir]"
+    # Parse Args (Manual loop to support long options)
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -t|--target) TARGET="$2"; shift 2 ;;
+            -o|--output) OUT_DIR="$2"; shift 2 ;;
+            -s|--scope) SCOPE_FILE="$2"; shift 2 ;;
+            -p|--profile) PROFILE="$2"; shift 2 ;;
+            -c|--config) CONFIG_FILE="$2"; shift 2 ;;
+            --cookie) AUTH_COOKIE="$2"; shift 2 ;;
+            --auth-header) AUTH_HEADER="$2"; shift 2 ;;
+            --dry-run|--plan) DRY_RUN="true"; shift 1 ;;
+            -h|--help) 
+                echo "Usage: $0 -t <target> [-p fast|default|full|stealth|noisy] [--dry-run] [--cookie \"...\"]"
                 exit 0 
                 ;;
-            *) exit 1 ;;
+            *) echo "Unknown option: $1"; exit 1 ;;
         esac
     done
 
@@ -54,17 +60,62 @@ main() {
     if [[ -z "$OUT_DIR" ]]; then
         OUT_DIR="lazycat_${TARGET}_$(date +%F_%H%M)"
     fi
-    mkdir -p "$OUT_DIR"/{content,vulns}
     
-    # Init Logger
-    export LOG_FILE="$OUT_DIR/run.log"
+    if [[ "$DRY_RUN" != "true" ]]; then
+        mkdir -p "$OUT_DIR"/{content,vulns,evidence}
+        export LOG_FILE="$OUT_DIR/run.log"
+    else
+        echo -e "${YELLOW}[PLAN] Dry-run mode enabled. No changes will be made.${NC}"
+    fi
+    
     banner
 
     log_info "Loading configuration from $CONFIG_FILE..."
-    # Parse YAML config into bash variables (e.g. tools_nuclei_rate_limit)
+    # Parse YAML config into bash variables
     eval $(parse_yaml "$CONFIG_FILE")
 
+    # Override Auth from CLI
+    if [[ -n "$AUTH_COOKIE" ]]; then
+        auth_cookie="$AUTH_COOKIE"
+        log_info "Auth Cookie provided via CLI"
+    fi
+    if [[ -n "$AUTH_HEADER" ]]; then
+        auth_header="$AUTH_HEADER"
+        log_info "Auth Header provided via CLI"
+    fi
+
     log_info "Starting LazyCat on $TARGET using profile: $PROFILE"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "[PLAN] Target: $TARGET"
+        log_info "[PLAN] Profile: $PROFILE"
+        log_info "[PLAN] Output: $OUT_DIR"
+        log_info "[PLAN] Auth: $([[ -n "$auth_cookie" || -n "$auth_header" ]] && echo "YES" || echo "NO")"
+        
+        # Simulate Discovery
+        log_info "[PLAN] Step 1: Discovery (Subfinder + HTTPX)"
+        
+        # Simulate Crawling
+        local crawl_enabled="profiles_${PROFILE}_katana"
+        if [[ "${!crawl_enabled}" == "true" ]]; then
+            log_info "[PLAN] Step 2: Crawling (Katana) - Enabled"
+        else
+            log_info "[PLAN] Step 2: Crawling - Disabled"
+        fi
+        
+        # Simulate Vuln Scan
+        local nuclei_tags="profiles_${PROFILE}_nuclei_tags"
+        local nuclei_sev="profiles_${PROFILE}_nuclei_severity"
+        local nuclei_rate="profiles_${PROFILE}_nuclei_rate_limit" # Check for override
+        [[ -z "${!nuclei_rate}" ]] && nuclei_rate="${tools_nuclei_rate_limit}"
+        
+        log_info "[PLAN] Step 3: Vuln Scan (Nuclei)"
+        log_info "[PLAN]   Tags: ${!nuclei_tags}"
+        log_info "[PLAN]   Severity: ${!nuclei_sev}"
+        log_info "[PLAN]   Rate Limit: ${!nuclei_rate}"
+        
+        return 0
+    fi
 
     # 1. Discovery
     run_discovery "$TARGET" "$OUT_DIR" "$SCOPE_FILE"

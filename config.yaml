@@ -6,10 +6,17 @@ threads: 4                 # Default threads (will be auto-adjusted by nproc if 
 user_agent: "Mozilla/5.0 (compatible; LazyCatBot/v1; +http://company.com/security)"
 timeout: "300"
 
+# --- AUTHENTICATION ---
+auth:
+  cookie: ""
+  header: ""
+
 # --- PROFILES ---
 # fast: Discovery + Light Nuclei
 # default: Discovery + Crawl + Standard Nuclei
 # full: Deep Crawl + Dalfox + Heavy Nuclei + FFUF
+# stealth: Minimal noise, low rate limits
+# noisy: All guns blazing
 profiles:
   fast:
     subfinder: true
@@ -40,6 +47,30 @@ profiles:
     katana: true
     dalfox: true
     ffuf: true
+
+  stealth:
+    subfinder: true
+    httpx: true
+    nuclei: true
+    nuclei_severity: "critical,high"
+    nuclei_tags: "misconfig,exposure,auth"
+    katana: false
+    dalfox: false
+    ffuf: false
+    # Overrides
+    nuclei_rate_limit: 30
+
+  noisy:
+    subfinder: true
+    httpx: true
+    nuclei: true
+    nuclei_severity: "critical,high,medium,low,info"
+    nuclei_tags: "cve,rce,sqli,xxe,ssrf,lfi"
+    katana: true
+    dalfox: true
+    ffuf: true
+    # Overrides
+    nuclei_rate_limit: 300
 
 # --- TOOL SETTINGS ---
 tools:
