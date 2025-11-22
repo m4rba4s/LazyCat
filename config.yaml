@@ -1,0 +1,58 @@
+# LazyCat Configuration File
+# "The APT Recon Suite"
+
+# --- GLOBAL SETTINGS ---
+threads: 4                 # Default threads (will be auto-adjusted by nproc if not set)
+user_agent: "Mozilla/5.0 (compatible; LazyCatBot/v1; +http://company.com/security)"
+timeout: "300"
+
+# --- PROFILES ---
+# fast: Discovery + Light Nuclei
+# default: Discovery + Crawl + Standard Nuclei
+# full: Deep Crawl + Dalfox + Heavy Nuclei + FFUF
+profiles:
+  fast:
+    subfinder: true
+    httpx: true
+    nuclei: true
+    nuclei_severity: "critical,high"
+    nuclei_tags: "cve,exposure"
+    katana: false
+    dalfox: false
+    ffuf: false
+  
+  default:
+    subfinder: true
+    httpx: true
+    nuclei: true
+    nuclei_severity: "critical,high,medium"
+    nuclei_tags: "cve,exposure,misconfig,tech"
+    katana: true
+    dalfox: false
+    ffuf: false
+
+  full:
+    subfinder: true
+    httpx: true
+    nuclei: true
+    nuclei_severity: "critical,high,medium,low"
+    nuclei_tags: "cve,exposure,misconfig,tech,token,fuzz"
+    katana: true
+    dalfox: true
+    ffuf: true
+
+# --- TOOL SETTINGS ---
+tools:
+  subfinder:
+    threads: 10
+  httpx:
+    threads: 40
+    retries: 2
+  katana:
+    depth: 3
+    concurrency: 10
+  nuclei:
+    rate_limit: 150
+    concurrency: 25
+  dalfox:
+    workers: 40
