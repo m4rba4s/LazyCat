@@ -15,6 +15,9 @@ source "$SCRIPT_DIR/lib/utils.sh"
 source "$SCRIPT_DIR/modules/discovery.sh"
 source "$SCRIPT_DIR/modules/dns_security.sh"
 source "$SCRIPT_DIR/modules/tls_audit.sh"
+source "$SCRIPT_DIR/modules/smb_audit.sh"
+source "$SCRIPT_DIR/modules/service_exploit.sh"
+source "$SCRIPT_DIR/modules/payload_test.sh"
 source "$SCRIPT_DIR/modules/crawling.sh"
 source "$SCRIPT_DIR/modules/vuln.sh"
 source "$SCRIPT_DIR/modules/report.sh"
@@ -128,7 +131,12 @@ main() {
     # 1.6 TLS/SSL Audit
     run_tls_audit "$OUT_DIR"
 
-    # 2. Crawling (if enabled in profile)
+    # 2. Network Exploitation Tests
+    run_smb_audit "$OUT_DIR"
+    run_service_exploit "$OUT_DIR"
+    run_payload_test "$OUT_DIR"
+
+    # 3. Crawling (if enabled in profile)
     local crawl_enabled="profiles_${PROFILE}_katana"
     if [[ "${!crawl_enabled}" == "true" ]]; then
         run_crawling "$OUT_DIR"
@@ -136,10 +144,10 @@ main() {
         log_info "Skipping Crawling (disabled in profile)"
     fi
 
-    # 3. Vulnerability Scanning
+    # 4. Vulnerability Scanning
     run_vuln_scan "$OUT_DIR" "$PROFILE"
 
-    # 4. Reporting
+    # 5. Reporting
     generate_report "$TARGET" "$OUT_DIR" "$PROFILE"
 
     log_success "Scan Complete! Results in: $OUT_DIR"
