@@ -48,7 +48,6 @@ run_vuln_scan() {
         "${auth_args[@]}" \
         -silent -retries 2 \
         -duc \
-        -v \
         -o "$out_dir/vulns/nuclei_results.txt" \
         -json-export "$out_dir/vulns/nuclei_results.json"
         
@@ -76,6 +75,7 @@ run_vuln_scan() {
     if [[ "${!dalfox_enabled}" == "true" ]] && [[ -s "$out_dir/content/endpoints.txt" ]]; then
         log_info "Running Dalfox XSS Engine..."
         
+        # Prepare dalfox auth args
         local dalfox_args=()
         if [[ -n "$auth_cookie" ]]; then
             dalfox_args+=(--cookie "$auth_cookie")
@@ -87,7 +87,7 @@ run_vuln_scan() {
         # Filter for parameters to optimize
         cat "$out_dir/content/endpoints.txt" | grep "=" | head -n 5000 | \
         dalfox pipe --skip-bav --silence --multicast \
-            --workers "${tools_dalfox_workers:-40}" \
+            -w "${tools_dalfox_workers:-40}" \
             "${dalfox_args[@]}" \
             -o "$out_dir/vulns/xss.txt"
             
