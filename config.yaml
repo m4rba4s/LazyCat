@@ -1,5 +1,5 @@
 # LazyCat Configuration File
-# "The APT Recon Suite"
+
 
 # --- GLOBAL SETTINGS ---
 threads: 4                 # Default threads (will be auto-adjusted by nproc if not set)
