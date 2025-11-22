@@ -39,6 +39,7 @@ run_vuln_scan() {
 
     # 3. Run Nuclei
     # We use -json-export to get structured data for evidence generation
+    log_info "Scanning $(wc -l < "$scan_list") targets..."
     nuclei -l "$scan_list" \
         -tags "$tags" \
         -severity "$severity" \
@@ -46,6 +47,8 @@ run_vuln_scan() {
         -c "${tools_nuclei_concurrency:-25}" \
         "${auth_args[@]}" \
         -silent -retries 2 \
+        -duc \
+        -v \
         -o "$out_dir/vulns/nuclei_results.txt" \
         -json-export "$out_dir/vulns/nuclei_results.json"
         
