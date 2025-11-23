@@ -1,0 +1,12 @@
+[INFO] Egress allowed on port 80
+[INFO] Egress allowed on port 443
+[BLOCKED] Egress blocked on port 53
+[INFO] Egress allowed on port 8080
+[INFO] Egress allowed on port 4444
+[INFO] Egress allowed on port 1337
+[INFO] Egress allowed on port 80
+[INFO] Egress allowed on port 443
+[BLOCKED] Egress blocked on port 53
+[INFO] Egress allowed on port 8080
+[INFO] Egress allowed on port 4444
+[INFO] Egress allowed on port 1337

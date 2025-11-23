@@ -19,6 +19,7 @@ source "$SCRIPT_DIR/modules/smb_audit.sh"
 source "$SCRIPT_DIR/modules/service_exploit.sh"
 source "$SCRIPT_DIR/modules/payload_test.sh"
 source "$SCRIPT_DIR/modules/secrets.sh"
+source "$SCRIPT_DIR/modules/sqli_scan.sh"
 source "$SCRIPT_DIR/modules/crawling.sh"
 source "$SCRIPT_DIR/modules/vuln.sh"
 source "$SCRIPT_DIR/modules/report.sh"
@@ -100,6 +101,11 @@ main() {
         
         # Simulate Discovery
         log_info "[PLAN] Step 1: Discovery (Subfinder + HTTPX)"
+        log_info "[PLAN] Step 1.5: DNS & TLS Security Audit"
+        log_info "[PLAN] Step 1.9: WAF Detection"
+        log_info "[PLAN] Step 2: Network Exploitation (SMB, Services, Payloads)"
+        log_info "[PLAN] Step 2.4: Secrets & Supply Chain Analysis"
+        log_info "[PLAN] Step 2.5: Smart SQL Injection Scan"
         
         # Simulate Crawling
         local crawl_enabled="profiles_${PROFILE}_katana"
@@ -150,6 +156,7 @@ main() {
     run_service_exploit "$OUT_DIR"
     run_payload_test "$OUT_DIR"
     run_secrets_scan "$OUT_DIR"
+    run_sqli_scan "$OUT_DIR" "$PROFILE"
 
     # 3. Crawling (if enabled in profile)
     local crawl_enabled="profiles_${PROFILE}_katana"

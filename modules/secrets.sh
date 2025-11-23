@@ -63,6 +63,43 @@ run_secrets_scan() {
         grep -rE "sk_live_[0-9a-zA-Z]{24}" "$out_dir/secrets/js_files" | \
             awk '{print "[CRITICAL] Stripe Live Key found in " $1 ": " $2}' >> "$findings_file"
             
+        # --- Supply Chain Analysis (Library Detection) ---
+        log_info "Analyzing JS libraries for known vulnerabilities..."
+        local supply_chain_file="$out_dir/secrets/supply_chain.txt"
+        
+        # jQuery Version
+        grep -rE "jQuery v[0-9]+\.[0-9]+\.[0-9]+" "$out_dir/secrets/js_files" | \
+            grep -oE "jQuery v[0-9]+\.[0-9]+\.[0-9]+" | sort -u > "$supply_chain_file"
+            
+        # Bootstrap Version
+        grep -rE "Bootstrap v[0-9]+\.[0-9]+\.[0-9]+" "$out_dir/secrets/js_files" | \
+            grep -oE "Bootstrap v[0-9]+\.[0-9]+\.[0-9]+" | sort -u >> "$supply_chain_file"
+            
+        # React/Angular (heuristic)
+        if grep -rq "React.createElement" "$out_dir/secrets/js_files"; then
+            echo "React Framework detected" >> "$supply_chain_file"
+        fi
+        if grep -rq "angular.module" "$out_dir/secrets/js_files"; then
+            echo "Angular Framework detected" >> "$supply_chain_file"
+        fi
+        
+        # Check for Vulnerable Versions (Basic)
+        if [[ -s "$supply_chain_file" ]]; then
+            log_info "Libraries detected:"
+            cat "$supply_chain_file" | sed 's/^/  /'
+            
+            # jQuery < 3.5.0 XSS check
+            if grep -qE "jQuery v(1\.|2\.|3\.[0-4]\.)" "$supply_chain_file"; then
+                echo "[HIGH] Vulnerable jQuery version detected (< 3.5.0)" >> "$findings_file"
+                log_warn "⚠️  Vulnerable jQuery detected!"
+            fi
+            
+            # Bootstrap < 4.0.0 (XSS in tooltips)
+            if grep -qE "Bootstrap v(3\.|2\.)" "$supply_chain_file"; then
+                echo "[MEDIUM] Outdated Bootstrap version detected" >> "$findings_file"
+            fi
+        fi
+            
         # 4. Summary
         local findings_count=0
         if [[ -f "$findings_file" ]]; then

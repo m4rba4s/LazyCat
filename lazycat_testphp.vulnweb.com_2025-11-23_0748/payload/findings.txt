@@ -1,0 +1,2 @@
+[CRITICAL] DNS exfiltration possible
+[CRITICAL] DNS exfiltration possible

@@ -1,0 +1,8 @@
+=== Reverse Shell Test Patterns ===
+Common reverse shell ports tested:
+  - 4444 (Metasploit default)
+  - 1337 (Common backdoor)
+  - 443 (HTTPS masquerade)
+  - 53 (DNS masquerade)
+
+Recommendation: Block outbound connections on non-standard ports

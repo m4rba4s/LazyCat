@@ -41,7 +41,10 @@ run_discovery() {
         -tech-detect -status-code -title \
         -o "$out_dir/live_hosts.txt"
 
-    local count=$(wc -l < "$out_dir/live_hosts.txt")
+    local count=0
+    if [[ -f "$out_dir/live_hosts.txt" ]]; then
+        count=$(wc -l < "$out_dir/live_hosts.txt")
+    fi
     log_success "Live Assets: $count"
     
     if [[ "$count" -eq 0 ]]; then
