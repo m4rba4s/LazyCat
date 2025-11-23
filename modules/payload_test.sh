@@ -16,8 +16,13 @@ run_payload_test() {
     local eicar='X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
     echo "$eicar" > "$out_dir/payload/eicar.txt"
     
-    # Test various extensions
-    for ext in php jsp asp aspx sh py exe; do
+    # Generate Large Payloads (Stress Test)
+    log_info "Generating large payloads for stress testing..."
+    dd if=/dev/zero of="$out_dir/payload/large_1mb.bin" bs=1M count=1 2>/dev/null
+    dd if=/dev/zero of="$out_dir/payload/large_5mb.bin" bs=1M count=5 2>/dev/null
+    
+    # Test various extensions (Polyglots & Bypasses)
+    for ext in php jsp asp aspx sh py exe php.jpg php%00.jpg; do
         cp "$out_dir/payload/eicar.txt" "$out_dir/payload/test.$ext"
     done
     
@@ -31,6 +36,27 @@ run_payload_test() {
         if [[ "$upload_count" -gt 0 ]]; then
             log_warn "Found $upload_count potential upload endpoints"
             echo "[MEDIUM] $upload_count file upload endpoints detected" >> "$out_dir/payload/findings.txt"
+            
+            # Active Stress Test (if not dry-run)
+            if [[ "${DRY_RUN:-false}" == "false" ]]; then
+                log_info "Running Active Upload Stress Test..."
+                while read -r endpoint; do
+                    log_info "Stress testing $endpoint with 1MB payload..."
+                    # Try to upload 1MB file (timeout 10s)
+                    local http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+                        -X POST -F "file=@$out_dir/payload/large_1mb.bin" \
+                        --max-time 10 "$endpoint" || echo "TIMEOUT")
+                    
+                    if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
+                        echo "[CRITICAL] Large file (1MB) accepted by $endpoint" >> "$out_dir/payload/findings.txt"
+                        log_warn "⚠️  Endpoint $endpoint accepted 1MB payload!"
+                    elif [[ "$http_code" == "TIMEOUT" ]]; then
+                         echo "[HIGH] Upload timeout (DoS potential) on $endpoint" >> "$out_dir/payload/findings.txt"
+                    else
+                        log_info "Endpoint returned $http_code (Safe)"
+                    fi
+                done < "$out_dir/payload/upload_endpoints.txt"
+            fi
         fi
     fi
     
@@ -107,7 +133,11 @@ run_payload_test() {
     } > "$out_dir/payload/PAYLOAD_REPORT.md"
     
     # Summary
-    local findings_count=$(wc -l < "$out_dir/payload/findings.txt" 2>/dev/null || echo 0)
+    # Summary
+    local findings_count=0
+    if [[ -f "$out_dir/payload/findings.txt" ]]; then
+        findings_count=$(wc -l < "$out_dir/payload/findings.txt")
+    fi
     if [[ "$findings_count" -gt 0 ]]; then
         log_warn "Payload Delivery Issues Found: $findings_count"
     else

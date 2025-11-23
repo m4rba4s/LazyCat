@@ -93,7 +93,10 @@ run_smb_audit() {
     done < "$ip_list"
     
     # Summary
-    local findings_count=$(wc -l < "$out_dir/smb/findings.txt" 2>/dev/null || echo 0)
+    local findings_count=0
+    if [[ -f "$out_dir/smb/findings.txt" ]]; then
+        findings_count=$(wc -l < "$out_dir/smb/findings.txt")
+    fi
     if [[ "$findings_count" -gt 0 ]]; then
         log_warn "SMB Security Issues Found: $findings_count"
     else

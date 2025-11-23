@@ -18,6 +18,7 @@ source "$SCRIPT_DIR/modules/tls_audit.sh"
 source "$SCRIPT_DIR/modules/smb_audit.sh"
 source "$SCRIPT_DIR/modules/service_exploit.sh"
 source "$SCRIPT_DIR/modules/payload_test.sh"
+source "$SCRIPT_DIR/modules/secrets.sh"
 source "$SCRIPT_DIR/modules/crawling.sh"
 source "$SCRIPT_DIR/modules/vuln.sh"
 source "$SCRIPT_DIR/modules/report.sh"
@@ -111,13 +112,15 @@ main() {
         # Simulate Vuln Scan
         local nuclei_tags="profiles_${PROFILE}_nuclei_tags"
         local nuclei_sev="profiles_${PROFILE}_nuclei_severity"
-        local nuclei_rate="profiles_${PROFILE}_nuclei_rate_limit" # Check for override
-        [[ -z "${!nuclei_rate}" ]] && nuclei_rate="${tools_nuclei_rate_limit}"
+        # Handle Rate Limit Override
+        local rate_var="profiles_${PROFILE}_nuclei_rate_limit"
+        local final_rate="${!rate_var}"
+        [[ -z "$final_rate" ]] && final_rate="${tools_nuclei_rate_limit}"
         
         log_info "[PLAN] Step 3: Vuln Scan (Nuclei)"
         log_info "[PLAN]   Tags: ${!nuclei_tags}"
         log_info "[PLAN]   Severity: ${!nuclei_sev}"
-        log_info "[PLAN]   Rate Limit: ${!nuclei_rate}"
+        log_info "[PLAN]   Rate Limit: $final_rate"
         
         return 0
     fi
@@ -131,10 +134,22 @@ main() {
     # 1.6 TLS/SSL Audit
     run_tls_audit "$OUT_DIR"
 
+    # WAF Detection (Pro Feature)
+    log_info "Phase 1.9: WAF & CDN Detection"
+    local waf_sig=$(curl -I -s -k --max-time 5 "$TARGET" | grep -iE "(server|x-cdn|x-waf|cloudflare|akamai|imperva)")
+    if [[ -n "$waf_sig" ]]; then
+        log_warn "WAF/CDN Detected:"
+        echo "$waf_sig" | sed 's/^/  /'
+        echo "$waf_sig" > "$OUT_DIR/waf_detection.txt"
+    else
+        log_info "No obvious WAF signatures found"
+    fi
+
     # 2. Network Exploitation Tests
     run_smb_audit "$OUT_DIR"
     run_service_exploit "$OUT_DIR"
     run_payload_test "$OUT_DIR"
+    run_secrets_scan "$OUT_DIR"
 
     # 3. Crawling (if enabled in profile)
     local crawl_enabled="profiles_${PROFILE}_katana"

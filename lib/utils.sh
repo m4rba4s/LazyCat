@@ -52,7 +52,7 @@ banner() {
     echo "/_____/\__,_/ /___/\__, /  \____/\__,_/\__/  "
     echo "                  /____/                     "
     echo -e "${NC}"
-    echo -e "${BOLD}LazyCat - The APT Recon Suite${NC}"
+    echo -e "${BOLD}LazyCat - now drink some cofee and chill${NC}"
     echo -e "Target: ${TARGET:-None} | Profile: ${PROFILE:-Default}"
     echo "------------------------------------------------"
 }

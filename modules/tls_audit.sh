@@ -63,7 +63,10 @@ run_tls_audit() {
     fi
     
     # Summary
-    local findings_count=$(wc -l < "$out_dir/tls/findings.txt" 2>/dev/null || echo 0)
+    local findings_count=0
+    if [[ -f "$out_dir/tls/findings.txt" ]]; then
+        findings_count=$(wc -l < "$out_dir/tls/findings.txt")
+    fi
     if [[ "$findings_count" -gt 0 ]]; then
         log_warn "TLS Security Issues Found: $findings_count"
     else
