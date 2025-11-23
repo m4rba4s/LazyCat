@@ -29,17 +29,12 @@ run_vuln_scan() {
     log_info "Configuration: Tags=[$tags] Severity=[$severity] Rate=[$rate_limit]"
 
     # 2. Prepare Auth Flags
-    local auth_args=()
-    if [[ -n "$auth_cookie" ]]; then
-        auth_args+=(-H "Cookie: $auth_cookie")
-    fi
-    if [[ -n "$auth_header" ]]; then
-        auth_args+=(-H "$auth_header")
-    fi
-
-    # 3. Run Nuclei
+    # 1. Nuclei Scan
+    log_info "Running Nuclei..."
+    
+    local auth_args=($(build_auth_args))
+    
     # We use -json-export to get structured data for evidence generation
-    log_info "Scanning $(wc -l < "$scan_list") targets..."
     nuclei -l "$scan_list" \
         -tags "$tags" \
         -severity "$severity" \
@@ -49,28 +44,27 @@ run_vuln_scan() {
         -silent -retries 2 \
         -duc \
         -o "$out_dir/vulns/nuclei_results.txt" \
-        -json-export "$out_dir/vulns/nuclei_results.json"
+        -json-export "$out_dir/vulns/nuclei_results.json" || true
         
-    # 4. Generate Evidence (Reproducer)
+    # Parse Results (JSON)
+    local evidence_file="$out_dir/evidence/nuclei_evidence.sh"
+    echo "#!/bin/bash" > "$evidence_file"
+    
     if [[ -f "$out_dir/vulns/nuclei_results.json" ]]; then
-        log_info "Generating evidence/reproducer_curl.sh..."
-        local evidence_file="$out_dir/evidence/reproducer_curl.sh"
-        echo "#!/bin/bash" > "$evidence_file"
-        echo "# Auto-generated reproduction scripts" >> "$evidence_file"
-        
-        # Parse JSON and extract curl commands (using jq if available, else simple grep/awk fallback)
-        if command -v jq &>/dev/null; then
-            jq -r '.[] | "# " + .info.name + "\ncurl -k -v \"" + .matched_at + "\"\n"' "$out_dir/vulns/nuclei_results.json" >> "$evidence_file" 2>/dev/null || \
-                grep "matched-at" "$out_dir/vulns/nuclei_results.json" | awk -F'"' '{print "# Potential Vuln\ncurl -k -v \"" $4 "\""}' >> "$evidence_file"
-        else
-            # Fallback: Simple URL extraction
-            grep "matched-at" "$out_dir/vulns/nuclei_results.json" | \
-            awk -F'"' '{print "# Potential Vuln\ncurl -k -v \"" $4 "\""}' >> "$evidence_file"
-        fi
-        chmod +x "$evidence_file"
+        jq -r '.[] | "# " + .info.name + "\ncurl -k -v \"" + .matched_at + "\"\n"' "$out_dir/vulns/nuclei_results.json" >> "$evidence_file" 2>/dev/null || \
+        grep "matched-at" "$out_dir/vulns/nuclei_results.json" | awk -F'"' '{print "# Potential Vuln\ncurl -k -v \"" $4 "\""}' >> "$evidence_file" || true
+    fi
+    
+    chmod +x "$evidence_file"
+    
+    local vuln_count=$(wc -l < "$out_dir/vulns/nuclei_results.txt" 2>/dev/null || echo 0)
+    if [[ "$vuln_count" -gt 0 ]]; then
+        log_warn "Nuclei found $vuln_count vulnerabilities!"
+    else
+        log_success "Nuclei scan clean."
     fi
 
-    # --- DALFOX ---
+    # --- DALFOX (XSS) ---
     local dalfox_enabled="profiles_${profile}_dalfox"
     if [[ "${!dalfox_enabled}" == "true" ]] && [[ -s "$out_dir/content/endpoints.txt" ]]; then
         log_info "Running Dalfox XSS Engine..."
@@ -89,7 +83,7 @@ run_vuln_scan() {
         dalfox pipe --skip-bav --silence --multicast \
             -w "${tools_dalfox_workers:-40}" \
             "${dalfox_args[@]}" \
-            -o "$out_dir/vulns/xss.txt"
+            -o "$out_dir/vulns/xss.txt" || true
             
         # Append Dalfox findings to evidence
         if [[ -s "$out_dir/vulns/xss.txt" ]]; then

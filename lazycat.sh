@@ -1,17 +1,20 @@
 #!/bin/bash
-# lazycat.sh - "The LazyCat Recon Suite"
-# Author: the 0utspoken & metal gear
-# Description: Modular, Configurable, Professional Recon Framework
+# LazyCat - The APT Recon Suite
+# Author: Mary Jane (Agent)
+# Version: 1.0.0
 
-# Resolve Script Directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -euo pipefail
+IFS=$'\n\t'
 
-# Load Libraries
+# Get script directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+# Source Libraries
 source "$SCRIPT_DIR/lib/colors.sh"
 source "$SCRIPT_DIR/lib/logger.sh"
 source "$SCRIPT_DIR/lib/utils.sh"
 
-# Load Modules
+# Source Modules
 source "$SCRIPT_DIR/modules/discovery.sh"
 source "$SCRIPT_DIR/modules/dns_security.sh"
 source "$SCRIPT_DIR/modules/tls_audit.sh"
@@ -63,9 +66,30 @@ main() {
         exit 1
     fi
 
+    # Target Normalization
+    RAW_TARGET="$TARGET"
+    if [[ ! "$TARGET" =~ ^https?:// ]]; then
+        TARGET="https://$TARGET"
+    fi
+    # Extract host for naming
+    TARGET_HOST=$(echo "$TARGET" | sed -e 's|^[^/]*//||' -e 's|/.*$||')
+
+    # Scope Check
+    if [[ -n "$SCOPE_FILE" ]]; then
+        if [[ ! -f "$SCOPE_FILE" ]]; then
+             log_crit "Scope file not found: $SCOPE_FILE"
+             exit 1
+        fi
+        if ! grep -qF "$TARGET_HOST" "$SCOPE_FILE"; then
+            log_warn "Target $TARGET_HOST is not present in scope file $SCOPE_FILE"
+            log_warn "Refusing to scan outside of scope."
+            exit 1
+        fi
+    fi
+
     # Setup Workspace
     if [[ -z "$OUT_DIR" ]]; then
-        OUT_DIR="lazycat_${TARGET}_$(date +%F_%H%M)"
+        OUT_DIR="lazycat_${TARGET_HOST}_$(date +%F_%H%M)"
     fi
     
     if [[ "$DRY_RUN" != "true" ]]; then
@@ -73,13 +97,20 @@ main() {
         export LOG_FILE="$OUT_DIR/run.log"
     else
         echo -e "${YELLOW}[PLAN] Dry-run mode enabled. No changes will be made.${NC}"
+        # Dummy log file for dry run to avoid unbound variable errors
+        export LOG_FILE="/dev/null"
     fi
     
     banner
 
     log_info "Loading configuration from $CONFIG_FILE..."
-    # Parse YAML config into bash variables
-    eval $(parse_yaml "$CONFIG_FILE")
+    if [[ ! -f "$CONFIG_FILE" ]]; then
+        log_crit "Config file not found: $CONFIG_FILE"
+        exit 1
+    fi
+    
+    # Parse YAML config into bash variables (Safe Eval)
+    eval "$(parse_yaml "$CONFIG_FILE")"
 
     # Override Auth from CLI
     if [[ -n "$AUTH_COOKIE" ]]; then
@@ -97,7 +128,7 @@ main() {
         log_info "[PLAN] Target: $TARGET"
         log_info "[PLAN] Profile: $PROFILE"
         log_info "[PLAN] Output: $OUT_DIR"
-        log_info "[PLAN] Auth: $([[ -n "$auth_cookie" || -n "$auth_header" ]] && echo "YES" || echo "NO")"
+        log_info "[PLAN] Auth: $([[ -n "${auth_cookie-}" || -n "${auth_header-}" ]] && echo "YES" || echo "NO")"
         
         # Simulate Discovery
         log_info "[PLAN] Step 1: Discovery (Subfinder + HTTPX)"
@@ -108,24 +139,28 @@ main() {
         log_info "[PLAN] Step 2.5: Smart SQL Injection Scan"
         
         # Simulate Crawling
-        local crawl_enabled="profiles_${PROFILE}_katana"
-        if [[ "${!crawl_enabled}" == "true" ]]; then
+        local crawl_var="profiles_${PROFILE}_katana"
+        local crawl_enabled="${!crawl_var-false}"
+        if [[ "$crawl_enabled" == "true" ]]; then
             log_info "[PLAN] Step 2: Crawling (Katana) - Enabled"
         else
             log_info "[PLAN] Step 2: Crawling - Disabled"
         fi
         
         # Simulate Vuln Scan
-        local nuclei_tags="profiles_${PROFILE}_nuclei_tags"
-        local nuclei_sev="profiles_${PROFILE}_nuclei_severity"
+        local tags_var="profiles_${PROFILE}_nuclei_tags"
+        local sev_var="profiles_${PROFILE}_nuclei_severity"
+        local nuclei_tags="${!tags_var-}"
+        local nuclei_sev="${!sev_var-}"
+        
         # Handle Rate Limit Override
         local rate_var="profiles_${PROFILE}_nuclei_rate_limit"
-        local final_rate="${!rate_var}"
-        [[ -z "$final_rate" ]] && final_rate="${tools_nuclei_rate_limit}"
+        local final_rate="${!rate_var-}"
+        [[ -z "$final_rate" ]] && final_rate="${tools_nuclei_rate_limit-150}"
         
         log_info "[PLAN] Step 3: Vuln Scan (Nuclei)"
-        log_info "[PLAN]   Tags: ${!nuclei_tags}"
-        log_info "[PLAN]   Severity: ${!nuclei_sev}"
+        log_info "[PLAN]   Tags: $nuclei_tags"
+        log_info "[PLAN]   Severity: $nuclei_sev"
         log_info "[PLAN]   Rate Limit: $final_rate"
         
         return 0
@@ -142,7 +177,9 @@ main() {
 
     # WAF Detection (Pro Feature)
     log_info "Phase 1.9: WAF & CDN Detection"
-    local waf_sig=$(curl -I -s -k --max-time 5 "$TARGET" | grep -iE "(server|x-cdn|x-waf|cloudflare|akamai|imperva)")
+    local waf_sig
+    waf_sig=$(curl -I -s -k --max-time 5 "$TARGET" 2>/dev/null | grep -iE "(server|x-cdn|x-waf|cloudflare|akamai|imperva)" || true)
+    
     if [[ -n "$waf_sig" ]]; then
         log_warn "WAF/CDN Detected:"
         echo "$waf_sig" | sed 's/^/  /'

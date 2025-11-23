@@ -8,18 +8,15 @@ run_crawling() {
     
     # Prepare Auth Headers
     local auth_args=()
-    auth_args+=(-H "User-Agent: ${user_agent}")
-    if [[ -n "$auth_cookie" ]]; then
-        auth_args+=(-H "Cookie: $auth_cookie")
-    fi
-    if [[ -n "$auth_header" ]]; then
-        auth_args+=(-H "$auth_header")
-    fi
+    log_info "Running Katana..."
     
-    katana -list "$out_dir/urls.txt" -jc -kf -silent \
-        -c "${tools_katana_concurrency:-10}" \
+    local auth_args=($(build_auth_args))
+    
+    katana -list "$out_dir/live_hosts.txt" \
         -d "${tools_katana_depth:-3}" \
+        -c "${tools_katana_concurrency:-10}" \
         "${auth_args[@]}" \
+        -silent \
         -o "$out_dir/content/endpoints.txt"
         
     local count=$(wc -l < "$out_dir/content/endpoints.txt")

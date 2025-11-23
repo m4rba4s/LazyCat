@@ -45,23 +45,23 @@ run_secrets_scan() {
         # Define Regex Patterns
         # AWS Access Key ID
         grep -rE "AKIA[0-9A-Z]{16}" "$out_dir/secrets/js_files" | \
-            awk '{print "[CRITICAL] AWS Access Key found in " $1 ": " $2}' >> "$findings_file"
+            awk '{print "[CRITICAL] AWS Access Key found in " $1 ": " $2}' >> "$findings_file" || true
             
         # Google API Key
         grep -rE "AIza[0-9A-Za-z\\-_]{35}" "$out_dir/secrets/js_files" | \
-            awk '{print "[HIGH] Google API Key found in " $1 ": " $2}' >> "$findings_file"
+            awk '{print "[HIGH] Google API Key found in " $1 ": " $2}' >> "$findings_file" || true
             
         # Slack Token
         grep -rE "xox[baprs]-([0-9a-zA-Z]{10,48})" "$out_dir/secrets/js_files" | \
-            awk '{print "[CRITICAL] Slack Token found in " $1 ": " $2}' >> "$findings_file"
+            awk '{print "[CRITICAL] Slack Token found in " $1 ": " $2}' >> "$findings_file" || true
             
         # Private Key Header
         grep -r "BEGIN RSA PRIVATE KEY" "$out_dir/secrets/js_files" | \
-            awk '{print "[CRITICAL] RSA Private Key found in " $1}' >> "$findings_file"
+            awk '{print "[CRITICAL] RSA Private Key found in " $1}' >> "$findings_file" || true
             
         # Stripe Key
         grep -rE "sk_live_[0-9a-zA-Z]{24}" "$out_dir/secrets/js_files" | \
-            awk '{print "[CRITICAL] Stripe Live Key found in " $1 ": " $2}' >> "$findings_file"
+            awk '{print "[CRITICAL] Stripe Live Key found in " $1 ": " $2}' >> "$findings_file" || true
             
         # --- Supply Chain Analysis (Library Detection) ---
         log_info "Analyzing JS libraries for known vulnerabilities..."
@@ -69,11 +69,11 @@ run_secrets_scan() {
         
         # jQuery Version
         grep -rE "jQuery v[0-9]+\.[0-9]+\.[0-9]+" "$out_dir/secrets/js_files" | \
-            grep -oE "jQuery v[0-9]+\.[0-9]+\.[0-9]+" | sort -u > "$supply_chain_file"
+            grep -oE "jQuery v[0-9]+\.[0-9]+\.[0-9]+" | sort -u > "$supply_chain_file" || true
             
         # Bootstrap Version
         grep -rE "Bootstrap v[0-9]+\.[0-9]+\.[0-9]+" "$out_dir/secrets/js_files" | \
-            grep -oE "Bootstrap v[0-9]+\.[0-9]+\.[0-9]+" | sort -u >> "$supply_chain_file"
+            grep -oE "Bootstrap v[0-9]+\.[0-9]+\.[0-9]+" | sort -u >> "$supply_chain_file" || true
             
         # React/Angular (heuristic)
         if grep -rq "React.createElement" "$out_dir/secrets/js_files"; then

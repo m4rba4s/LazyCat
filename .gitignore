@@ -1,0 +1,13 @@
+# Scan Results
+lazycat_*/
+output/
+test_httpbin/
+test_vulnweb/
+
+# Logs
+*.log
+test_*.log
+run.log
+
+# System
+.DS_Store

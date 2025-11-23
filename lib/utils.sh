@@ -1,6 +1,8 @@
 #!/bin/bash
 # lib/utils.sh
 
+LAZYCAT_VERSION="1.0.0"
+
 check_dependency() {
     local tool="$1"
     if ! command -v "$tool" &>/dev/null; then
@@ -20,7 +22,7 @@ check_dependency() {
 }
 
 parse_yaml() {
-    local prefix=$2
+    local prefix=${2-}
     local s='[[:space:]]*' w='[a-zA-Z0-9_]*' fs=$(echo @|tr @ '\034')
     sed -e 's/#.*//' "$1" | tr -d '\r' | sed -ne "s|^\($s\):|\1|" \
         -e "s|^\($s\)\($w\)$s:$s[\"']\(.*\)[\"']$s\$|\1$fs\2$fs\3|p" \
@@ -52,9 +54,16 @@ banner() {
     echo "/_____/\__,_/ /___/\__, /  \____/\__,_/\__/  "
     echo "                  /____/                     "
     echo -e "${NC}"
-    echo -e "${BOLD}LazyCat - now get some cofee and chill${NC}"
+    echo -e "${BOLD}LazyCat Recon Suite v${LAZYCAT_VERSION}${NC}"
     echo -e "Target: ${TARGET:-None} | Profile: ${PROFILE:-Default}"
     echo "------------------------------------------------"
+}
+
+build_auth_args() {
+    local args=()
+    [[ -n "${auth_cookie-}" ]] && args+=(-H "Cookie: $auth_cookie")
+    [[ -n "${auth_header-}" ]] && args+=(-H "$auth_header")
+    printf '%s\n' "${args[@]}"
 }
 
 get_cpu_count() {

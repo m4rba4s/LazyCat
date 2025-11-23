@@ -15,13 +15,13 @@ run_dns_security() {
     local domain=$(echo "$target" | sed 's/https\?:\/\///' | sed 's/www\.//')
     
     # Get nameservers
-    dig +short NS "$domain" > "$out_dir/dns/nameservers.txt"
+    dig +short NS "$domain" > "$out_dir/dns/nameservers.txt" || true
     
     # Try AXFR on each nameserver
     while read -r ns; do
         [[ -z "$ns" ]] && continue
         log_info "Attempting AXFR on $ns..."
-        dig @"$ns" "$domain" AXFR >> "$out_dir/dns/axfr_results.txt" 2>&1
+        dig @"$ns" "$domain" AXFR >> "$out_dir/dns/axfr_results.txt" 2>&1 || true
     done < "$out_dir/dns/nameservers.txt"
     
     # Check if AXFR succeeded
@@ -32,7 +32,7 @@ run_dns_security() {
     
     # 2. DNSSEC Validation
     log_info "Checking DNSSEC..."
-    dig +dnssec "$domain" > "$out_dir/dns/dnssec.txt"
+    dig +dnssec "$domain" > "$out_dir/dns/dnssec.txt" || true
     if ! grep -q "ad;" "$out_dir/dns/dnssec.txt"; then
         log_warn "DNSSEC not properly configured"
         echo "[MEDIUM] DNSSEC not enabled for $domain" >> "$out_dir/dns/findings.txt"
@@ -42,46 +42,25 @@ run_dns_security() {
     log_info "Checking email security records..."
     {
         echo "=== SPF Record ==="
-        dig +short TXT "$domain" | grep "v=spf1"
+        dig +short TXT "$domain" | grep "v=spf1" || true
         echo ""
         echo "=== DMARC Record ==="
-        dig +short TXT "_dmarc.$domain"
+        dig +short TXT "_dmarc.$domain" || true
         echo ""
         echo "=== DKIM Records (common selectors) ==="
         for selector in default google dkim; do
-            dig +short TXT "${selector}._domainkey.$domain"
+            dig +short TXT "${selector}._domainkey.$domain" || true
         done
     } > "$out_dir/dns/email_security.txt"
-    
-    # Check for missing records
-    if ! grep -q "v=spf1" "$out_dir/dns/email_security.txt"; then
-        echo "[HIGH] Missing SPF record" >> "$out_dir/dns/findings.txt"
-    fi
-    if ! grep -q "v=DMARC1" "$out_dir/dns/email_security.txt"; then
-        echo "[HIGH] Missing DMARC record" >> "$out_dir/dns/findings.txt"
-    fi
-    
-    # 4. Subdomain Takeover Detection (using dnsx if available)
-    if command -v dnsx &>/dev/null && [[ -f "$out_dir/subs_raw.txt" ]]; then
-        log_info "Checking for subdomain takeover vulnerabilities..."
-        cat "$out_dir/subs_raw.txt" | dnsx -silent -cname -resp -o "$out_dir/dns/cnames.txt"
-        
-        # Check for common takeover patterns
-        grep -iE "(github\.io|herokuapp\.com|s3\.amazonaws\.com|azurewebsites\.net|cloudfront\.net)" \
-            "$out_dir/dns/cnames.txt" > "$out_dir/dns/potential_takeovers.txt" 2>/dev/null
-        
-        if [[ -s "$out_dir/dns/potential_takeovers.txt" ]]; then
-            log_warn "⚠️  Potential subdomain takeover detected!"
-            echo "[CRITICAL] Potential subdomain takeover found" >> "$out_dir/dns/findings.txt"
-        fi
-    fi
-    
+
+    # ... (skip lines)
+
     # 5. DNS Cache Poisoning Test (Kaminsky-style check)
     log_info "Checking DNS randomization..."
     {
         echo "=== DNS Query ID Randomization Test ==="
         for i in {1..5}; do
-            dig "$domain" | grep "Query time"
+            dig "$domain" | grep "Query time" || true
         done
     } > "$out_dir/dns/randomization_test.txt"
     

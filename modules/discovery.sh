@@ -12,7 +12,7 @@ run_discovery() {
     local subfinder_enabled="profiles_${PROFILE}_subfinder"
     if [[ "${!subfinder_enabled:-true}" == "true" ]]; then
         log_info "Running Subfinder..."
-        subfinder -d "$target" -silent -all -o "$out_dir/subs_raw.txt"
+        subfinder -d "$target" -silent -all -o "$out_dir/subs_raw.txt" || true
     else
         echo "$target" > "$out_dir/subs_raw.txt"
     fi
@@ -24,22 +24,27 @@ run_discovery() {
     # 2. Scope Filtering
     if [[ -n "$scope_file" ]]; then
         log_info "Applying Scope Filter..."
-        grep -Ff "$scope_file" "$out_dir/subs_raw.txt" > "$out_dir/subs_scoped.txt"
+        grep -Ff "$scope_file" "$out_dir/subs_raw.txt" > "$out_dir/subs_scoped.txt" || true
         local diff=$(($(wc -l < "$out_dir/subs_raw.txt") - $(wc -l < "$out_dir/subs_scoped.txt")))
         log_warn "Excluded $diff out-of-scope subdomains."
     else
         cp "$out_dir/subs_raw.txt" "$out_dir/subs_scoped.txt"
     fi
 
-    # 3. Live Host Verification
-    log_info "Checking Live Hosts (HTTPX)..."
+    # 2. HTTPX Probing
+    log_info "Running HTTPX..."
+    
+    local auth_args=($(build_auth_args))
+    
     cat "$out_dir/subs_scoped.txt" | httpx -silent \
         -threads "${tools_httpx_threads:-40}" \
+        "${auth_args[@]}" \
         -retries "${tools_httpx_retries:-2}" \
         -timeout "${timeout:-300}" \
         -random-agent \
+        -ports "80,443,8080,8443,4443,8000,8008,8888,9443,10443" \
         -tech-detect -status-code -title \
-        -o "$out_dir/live_hosts.txt"
+        -o "$out_dir/live_hosts.txt" || true
 
     local count=0
     if [[ -f "$out_dir/live_hosts.txt" ]]; then
