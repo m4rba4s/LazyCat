@@ -59,9 +59,9 @@ run_vuln_scan() {
         echo "# Auto-generated reproduction scripts" >> "$evidence_file"
         
         # Parse JSON and extract curl commands (using jq if available, else simple grep/awk fallback)
-        # Assuming jq is standard in APT env, but providing fallback just in case
         if command -v jq &>/dev/null; then
-            jq -r '. | "# " + .info.name + "\n" + "curl -k -v \"" + .matched_at + "\"" + (if .curl_command then " # " + .curl_command else "" end) + "\n"' "$out_dir/vulns/nuclei_results.json" >> "$evidence_file"
+            jq -r '.[] | "# " + .info.name + "\ncurl -k -v \"" + .matched_at + "\"\n"' "$out_dir/vulns/nuclei_results.json" >> "$evidence_file" 2>/dev/null || \
+                grep "matched-at" "$out_dir/vulns/nuclei_results.json" | awk -F'"' '{print "# Potential Vuln\ncurl -k -v \"" $4 "\""}' >> "$evidence_file"
         else
             # Fallback: Simple URL extraction
             grep "matched-at" "$out_dir/vulns/nuclei_results.json" | \
