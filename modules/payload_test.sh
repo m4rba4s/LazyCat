@@ -18,8 +18,8 @@ run_payload_test() {
     
     # Generate Large Payloads (Stress Test)
     log_info "Generating large payloads for stress testing..."
-    dd if=/dev/zero of="$out_dir/payload/large_1mb.bin" bs=1M count=1 2>/dev/null
-    dd if=/dev/zero of="$out_dir/payload/large_5mb.bin" bs=1M count=5 2>/dev/null
+    dd if=/dev/zero of="$out_dir/payload/large_1mb.bin" bs=1M count=1 2>/dev/null || true
+    dd if=/dev/zero of="$out_dir/payload/large_5mb.bin" bs=1M count=5 2>/dev/null || true
     
     # Test various extensions (Polyglots & Bypasses)
     for ext in php jsp asp aspx sh py exe php.jpg php%00.jpg; do
@@ -30,7 +30,7 @@ run_payload_test() {
     if [[ -s "$out_dir/content/endpoints.txt" ]]; then
         log_info "Searching for upload endpoints..."
         grep -iE "(upload|file|attach|import)" "$out_dir/content/endpoints.txt" > \
-            "$out_dir/payload/upload_endpoints.txt"
+            "$out_dir/payload/upload_endpoints.txt" || true
         
         local upload_count=$(wc -l < "$out_dir/payload/upload_endpoints.txt")
         if [[ "$upload_count" -gt 0 ]]; then

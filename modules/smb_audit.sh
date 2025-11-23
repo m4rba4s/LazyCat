@@ -14,7 +14,7 @@ run_smb_audit() {
     if [[ -f "$out_dir/live_hosts.txt" ]]; then
         awk '{print $1}' "$out_dir/live_hosts.txt" | \
             sed 's|https\?://||' | cut -d'/' -f1 | \
-            grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | sort -u > "$ip_list"
+            grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | sort -u > "$ip_list" || true
     fi
     
     # If no IPs, try to resolve from URLs
@@ -22,7 +22,7 @@ run_smb_audit() {
         log_info "Resolving IPs from hostnames..."
         while read -r url; do
             local host=$(echo "$url" | sed 's|https\?://||' | cut -d'/' -f1)
-            dig +short "$host" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' >> "$ip_list"
+            dig +short "$host" | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' >> "$ip_list" || true
         done < "$out_dir/urls.txt"
         sort -u -o "$ip_list" "$ip_list"
     fi
@@ -46,7 +46,7 @@ run_smb_audit() {
             
             # Nmap SMB scripts
             nmap -p 445,139 --script smb-protocols,smb-security-mode,smb-vuln-ms17-010,smb-vuln-cve-2020-0796 \
-                -Pn --open "$ip" 2>/dev/null
+                -Pn --open "$ip" 2>/dev/null || true
             
             echo ""
         } >> "$out_dir/smb/scan_results.txt"

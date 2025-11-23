@@ -28,10 +28,7 @@ run_vuln_scan() {
     
     log_info "Configuration: Tags=[$tags] Severity=[$severity] Rate=[$rate_limit]"
 
-    # 2. Prepare Auth Flags
-    # 1. Nuclei Scan
-    log_info "Running Nuclei..."
-    
+    # Prepare Auth & Run Nuclei
     local auth_args=($(build_auth_args))
     
     # We use -json-export to get structured data for evidence generation
@@ -69,14 +66,10 @@ run_vuln_scan() {
     if [[ "${!dalfox_enabled}" == "true" ]] && [[ -s "$out_dir/content/endpoints.txt" ]]; then
         log_info "Running Dalfox XSS Engine..."
         
-        # Prepare dalfox auth args
+        # Build dalfox-specific auth (uses --cookie instead of -H)
         local dalfox_args=()
-        if [[ -n "$auth_cookie" ]]; then
-            dalfox_args+=(--cookie "$auth_cookie")
-        fi
-        if [[ -n "$auth_header" ]]; then
-            dalfox_args+=(--header "$auth_header")
-        fi
+        [[ -n "${auth_cookie-}" ]] && dalfox_args+=(--cookie "$auth_cookie")
+        [[ -n "${auth_header-}" ]] && dalfox_args+=(--header "$auth_header")
 
         # Filter for parameters to optimize
         cat "$out_dir/content/endpoints.txt" | grep "=" | head -n 5000 | \

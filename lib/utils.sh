@@ -39,9 +39,15 @@ parse_yaml() {
 }
 
 cleanup() {
+    trap - SIGINT SIGTERM # Prevent recursive calls
     log_warn "Interrupted! Cleaning up..."
-    kill 0 2>/dev/null || true
-    wait 2>/dev/null || true
+    
+    # Kill child processes only
+    pkill -P $$ 2>/dev/null || true
+    
+    # Kill background jobs
+    jobs -p | xargs -r kill 2>/dev/null || true
+    
     exit 1
 }
 
