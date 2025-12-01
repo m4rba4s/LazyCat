@@ -30,6 +30,20 @@ source "$SCRIPT_DIR/modules/report.sh"
 # Trap Interrupts
 trap cleanup SIGINT SIGTERM
 
+require_tools() {
+    local missing=0
+    for tool in "$@"; do
+        if ! check_dependency "$tool"; then
+            missing=1
+        fi
+    done
+
+    if [[ "$missing" -ne 0 ]]; then
+        log_crit "Missing required dependencies. Install the tools above and re-run."
+        exit 1
+    fi
+}
+
 # --- MAIN ---
 main() {
     # Defaults
@@ -124,6 +138,31 @@ main() {
 
     log_info "Starting LazyCat on $TARGET using profile: $PROFILE"
 
+    # Dependency preflight (profile-aware)
+    local core_tools=(subfinder httpx nuclei curl dig jq)
+    local profile_katana="profiles_${PROFILE}_katana"
+    local profile_dalfox="profiles_${PROFILE}_dalfox"
+
+    # katana if profile enables crawling
+    if [[ "${!profile_katana:-false}" == "true" ]]; then
+        core_tools+=(katana)
+    fi
+
+    # dalfox if enabled
+    if [[ "${!profile_dalfox:-false}" == "true" ]]; then
+        core_tools+=(dalfox)
+    fi
+
+    # sqlmap only when profile runs SQLi
+    if [[ "$PROFILE" != "fast" && "$PROFILE" != "stealth" ]]; then
+        core_tools+=(sqlmap)
+    fi
+
+    # nmap used in SMB/service scanning
+    core_tools+=(nmap)
+
+    require_tools "${core_tools[@]}"
+
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "[PLAN] Target: $TARGET"
         log_info "[PLAN] Profile: $PROFILE"
@@ -166,8 +205,8 @@ main() {
         return 0
     fi
 
-    # 1. Discovery
-    run_discovery "$TARGET" "$OUT_DIR" "$SCOPE_FILE"
+    # 1. Discovery (use host-only for subdomain enumeration)
+    run_discovery "$TARGET_HOST" "$OUT_DIR" "$SCOPE_FILE"
 
     # 1.5 DNS Security Audit
     run_dns_security "$TARGET" "$OUT_DIR"

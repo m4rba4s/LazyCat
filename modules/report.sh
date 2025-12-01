@@ -12,7 +12,7 @@ extract_findings() {
     local file="$1"
     local severity="$2"
     if [[ -s "$file" ]]; then
-        grep "\[${severity}\]" "$file" || echo "None"
+        grep -i "\[${severity}\]" "$file" || echo "None"
     else
         echo "None"
     fi
